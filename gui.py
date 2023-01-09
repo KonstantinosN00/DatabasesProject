@@ -12,9 +12,17 @@ HEIGHT=600
 count=0
 db=sqlite3.connect('database\\realestate.db')
 
+def printComments(adid):
+    c=db.cursor()
+    result =  c.execute(f"SELECT user_id,comm_date,rating,comment FROM SXOLIO WHERE ad_id={adid}").fetchall()
+    for comm in result:
+        print(f"User {comm[0]} on {comm[1]} commented:")
+        print("Rating:",comm[2])
+        print(comm[3])
+        print("___________________")
+    db.commit()
 
 def getAllAds():
-    db=sqlite3.connect('database\\realestate.db')
     c=db.cursor()
     result =  c.execute("SELECT ad_id,title,location,purpose,price,contact_number FROM AGGELIA")
     db.commit()
@@ -27,7 +35,7 @@ class Login(Tk):
         self.title("Login to Database")
         self.iconbitmap("img\\icon.ico")
         self.geometry("500x600")
-        self.configure(background='lightblue')
+        self.configure(background='lightblue',padx=20)
         self.resizable(False,False)
 
         self.container=LabelFrame(width=300,height=300,background='lightblue',border=10)
@@ -48,6 +56,23 @@ class Login(Tk):
         #Login button
         self.loginButton = Button(self.container, text="ENTER",font='12',padx=20,command=self.validateUser).pack(pady=30) 
         self.container.pack(fill='both',padx=100,pady=100)
+
+        self.newUplBtn = Button(self, text="New Uploader Profile",font='12',command=lambda: self.newUser("UPLOADER")).pack(side=LEFT,padx=50)
+        self.newEndBtn = Button(self, text="New Visitor Profile",font='12',command=lambda: self.newUser("ENDIAFEROMENOS")).pack(side=LEFT,padx=20)
+
+        
+    def newUser(self,prof):
+        c=db.cursor()
+        ids=c.execute(f"SELECT user_id FROM {prof}").fetchall()
+        newid=max(ids)[0]+1
+        psw=input("Set Password: ")
+        fname=input("First Name: ")
+        lname=input("Last Name: ")
+        email=input("Email: ")
+        ph=input("Telephone Number: ")
+        c.execute(f"""INSERT INTO {prof}(user_id,password,fname,lname,email,phone)
+        VALUES ({newid},'{psw}','{fname}','{lname}','{email}',{ph})""")
+        db.commit()
 
     def validateUser(self):
         u=self.user.get()
@@ -103,18 +128,15 @@ class App(Tk):
         self.myAdsTab=Frame(self.tabs)
         self.viewAdTab=Frame(self.tabs,background="lightgrey")
         self.alterAdTab=Frame(self.tabs,background="lightgrey")
-        self.profileTab=Frame(self.tabs)
         self.allAdsTab.pack()
         self.myAdsTab.pack()
         self.viewAdTab.pack()
         self.alterAdTab.pack()
-        self.profileTab.pack()
         #Append Tabs
         self.tabs.add(self.allAdsTab,text="Main Menu")
-        self.tabs.add(self.myAdsTab,text="My Advertisements")
+        self.tabs.add(self.myAdsTab,text="My Advertisements",state='hidden')
         self.tabs.add(self.viewAdTab,text="View Advertisement",state='hidden')
         self.tabs.add(self.alterAdTab,text="Update Advertisement",state='hidden')
-        self.tabs.add(self.profileTab,text="Profile Details")
         self.tabs.pack(fill='both') 
         #----------------------------------------------#
         #ALL ADS TAB
@@ -160,11 +182,10 @@ class App(Tk):
                 self.tree.insert(parent='',index='end',iid=count,text='',values=(row[0],row[1],row[2],row[3],str(row[4])+' €',row[5]),tags=('oddrow',))
             count+=1
         
-        
         self.actionBtnsContainer=LabelFrame(self.allAdsTab,text="Action Buttons",padx=20,pady=5,background='lightgrey')
         self.actionBtnsContainer.pack()
         #Action Buttons
-        Button(self.actionBtnsContainer,text='+',font="TkDefaultFont 16",padx=10,pady=3,background='lightgreen').pack(side=LEFT,padx=[20,10],anchor=W)
+        Button(self.actionBtnsContainer,text='+',font="TkDefaultFont 16",command=self.newAd,padx=10,pady=3,background='lightgreen').pack(side=LEFT,padx=[20,10],anchor=W)
         self.viewAdbtn=Button(self.actionBtnsContainer,text="View Advertisement",command=self.selectAd,padx=10,pady=10,background='lightblue')
         self.viewAdbtn.pack(side=LEFT,padx=[40,10],anchor=W)
         self.deleteAdbtn=Button(self.actionBtnsContainer,text="Delete Advertisement",command=self.deleteAd,padx=10,pady=10,background='lightblue')
@@ -173,8 +194,13 @@ class App(Tk):
         self.updateAdbtn.pack(side=LEFT,padx=[40,40],anchor=W)
         #--------------------------------------------------------------#
         #--------------------------------------------------------------#
-        #Update Ad Tab
+        if self.mode!='admin': 
+            self.deleteAdbtn['state']=DISABLED
+            self.updateAdbtn['state']=DISABLED
+        if self.mode=='endiaferomenos':
+            self.tabs.tab(self.myAdsTab,state='normal')
 
+    def newAd(self):return
        
     def updateAd(self):
         selected=self.tree.focus()
@@ -234,7 +260,6 @@ class App(Tk):
         self.tabs.tab(self.alterAdTab,state='hidden')
         for child in self.alterAdTab.winfo_children(): child.destroy()
         self.tabs.select(self.allAdsTab)
-        
 
     def confirmUpdate(self):
         if self.newid.get().isnumeric()==False : 
@@ -274,11 +299,14 @@ class App(Tk):
         self.adImg.grid(row=0,column=0,rowspan=10,columnspan=3,padx=[60,20],pady=[50,20])
         # Ad Details
         (title,desc,loc,purp,price)=c.execute(f"SELECT title,description,location,purpose,price FROM AGGELIA WHERE ad_id={self.viewed_ad}").fetchone()
+        rating=c.execute(f"SELECT ROUND(AVG(rating),1) FROM SXOLIO WHERE ad_id={self.viewed_ad};").fetchone()
+        rating=str(rating[0])
         if purp=="rent": purp="Ενοικίαση"
         else: purp="Προς Πώληση"
 
         self.adTitle=Label(self.topAdFrame,text=title.upper(),font="TkDefaultFont 25",background='lightgrey').grid(row=0,column=3,padx=30,pady=[40,10],sticky=W)
-        self.adPurpLocPrice=Label(self.topAdFrame,text=purp+': '+str(price)+' €\n\n'+"Τοποθεσία: "+loc,font="TkDefaultFont 15",background='lightgrey',justify=LEFT).grid(row=1,column=3,padx=30,sticky=W)
+        self.adPurpLocPrice=Label(self.topAdFrame,text=purp+': '+str(price)+' €\n\n'+"Τοποθεσία: "+loc+'\nΜέση Βαθμολογία χρηστών: '+rating+'/10',font="TkDefaultFont 15",background='lightgrey',justify=LEFT).grid(row=1,column=3,padx=30,sticky=W)
+        self.commBtn=Button(self.topAdFrame,text="Comments",padx=8,command=lambda: printComments(self.viewed_ad)).grid(row=7,column=3,padx=30,sticky=E)
         self.detailsBtn=Button(self.topAdFrame,text="Details",padx=20,command=self.detailsBox).grid(row=8,column=3,padx=30,sticky=E)
 
     #Bottom Frame
@@ -286,6 +314,8 @@ class App(Tk):
         self.adDesc=Label(self.descContainer,text=desc,font="TkDefaultFont 10",background='lightgrey',wraplength=850,justify=LEFT).pack()
         self.descContainer.pack()
         db.commit()
+
+
 
     def selectAd(self):
         selected=self.tree.focus()
@@ -370,5 +400,5 @@ class App(Tk):
 
 if __name__ == '__main__':
     #Login().mainloop()
-    App('admin').mainloop()
+    App('endiaferomenos').mainloop()
     
