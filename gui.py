@@ -4,6 +4,7 @@ from tkinter import messagebox
 from tkinter import scrolledtext
 from PIL import Image, ImageTk
 #pip install pillow
+import queries
 
 import sqlite3
 
@@ -21,6 +22,14 @@ def printComments(adid):
         print(comm[3])
         print("___________________")
     db.commit()
+
+def printstats():
+    c=db.cursor()
+    result = queries.statsbytype(c)
+    print("____STATS_____")
+    print("Type, Purpose, Average Price")
+    for row in result:
+        print(f"{row[0]}   {row[1]}   {row[2]}")
 
 def getAllAds():
     c=db.cursor()
@@ -87,17 +96,17 @@ class Login(Tk):
         except: messagebox.showwarning(title="Error", message="Wrong credentials!\nTry again.").center()
         if upl!=None: 
             self.destroy()
-            App("uploader",upl)
+            App("uploader",upl[0])
         elif end!=None: 
             self.destroy()
-            App("endiaferomenos",end)
+            App("endiaferomenos",end[0])
         db.commit()
         
 
 
 class App(Tk):
     # Modes: admin / uploader / endiaferomenos
-    def __init__(self,mode,user_id=0):
+    def __init__(self,mode,user_id=500005):
         super().__init__()
         self.style=ttk.Style(self)
         self.style.theme_create( "custom_theme", parent="alt", settings={
@@ -125,19 +134,24 @@ class App(Tk):
         #Create Menu Tabs
         self.tabs=ttk.Notebook(self,width=200,height=600)
         self.allAdsTab=Frame(self.tabs,background="lightgrey")
-        self.myAdsTab=Frame(self.tabs)
+        self.myAdsTab=Frame(self.tabs,background='lightblue')
         self.viewAdTab=Frame(self.tabs,background="lightgrey")
         self.alterAdTab=Frame(self.tabs,background="lightgrey")
+        self.searchTab=Frame(self.tabs,background="lightgrey")
         self.allAdsTab.pack()
         self.myAdsTab.pack()
         self.viewAdTab.pack()
         self.alterAdTab.pack()
+        self.searchTab.pack()
         #Append Tabs
         self.tabs.add(self.allAdsTab,text="Main Menu")
         self.tabs.add(self.myAdsTab,text="My Advertisements",state='hidden')
         self.tabs.add(self.viewAdTab,text="View Advertisement",state='hidden')
         self.tabs.add(self.alterAdTab,text="Update Advertisement",state='hidden')
+        self.tabs.add(self.searchTab,text="Search Advertisements")
         self.tabs.pack(fill='both') 
+        #----------------------------------------------#
+        Button(self.myAdsTab,text="Click to print recommended Advertisements to command line...",command=self.printRecomm).pack(padx=100,pady=100)
         #----------------------------------------------#
         #ALL ADS TAB
         #Treeview container
@@ -193,6 +207,34 @@ class App(Tk):
         self.updateAdbtn=Button(self.actionBtnsContainer,text="Modify Advertisement",command=self.updateAd,padx=10,pady=10,background='lightblue')
         self.updateAdbtn.pack(side=LEFT,padx=[40,40],anchor=W)
         #--------------------------------------------------------------#
+    #SEARCH ADS TAB
+        #1
+        self.search1=StringVar()
+        self.searchFr1=LabelFrame(self.searchTab,background='lightgrey',padx=20,pady=20,text="Search by keyword",font="TkDefaultFont 10")
+        Entry(self.searchFr1,font="TkDefaultFont 12",textvariable=self.search1).pack(side=LEFT)
+        Button(self.searchFr1,text="Search...",padx=10,pady=2,command=self.printAdsbyString).pack(side=LEFT,padx=[20,0])
+        self.searchFr1.pack(pady=[40,0])
+
+        #2
+        [self.type,self.purpose,self.location,self.pricemin,self.pricemax]=[StringVar(),StringVar(),StringVar(),StringVar(),StringVar()]
+        self.searchFr2=LabelFrame(self.searchTab,background='lightgrey',padx=20,pady=20,text="Search by keyword",font="TkDefaultFont 10")
+        Label(self.searchFr2,background='lightgrey',text="Type: ").pack(side=LEFT)
+        Entry(self.searchFr2,width=5,font="TkDefaultFont 12",textvariable=self.type).pack(side=LEFT,padx=[0,15])
+        Label(self.searchFr2,background='lightgrey',text="Purpose: ").pack(side=LEFT)
+        Entry(self.searchFr2,width=5,font="TkDefaultFont 12",textvariable=self.purpose).pack(side=LEFT,padx=[0,15])
+        Label(self.searchFr2,background='lightgrey',text="Location: ").pack(side=LEFT)
+        Entry(self.searchFr2,width=5,font="TkDefaultFont 12",textvariable=self.location).pack(side=LEFT,padx=[0,15])
+        Label(self.searchFr2,background='lightgrey',text="Min Price: ").pack(side=LEFT)
+        Entry(self.searchFr2,width=5,font="TkDefaultFont 12",textvariable=self.pricemin).pack(side=LEFT,padx=[0,15])
+        Label(self.searchFr2,background='lightgrey',text="Max Price: ").pack(side=LEFT)
+        Entry(self.searchFr2,width=5,font="TkDefaultFont 12",textvariable=self.pricemax).pack(side=LEFT,padx=[0,15])
+        Button(self.searchFr2,background='lightgrey',text="Search...",padx=10,pady=2,command=self.printFiltered).pack(side=LEFT,padx=[20,0])
+        self.searchFr2.pack(pady=[40,0])
+
+        #stats
+        self.statsFr=LabelFrame(self.searchTab,background='lightgrey',padx=20,pady=15,text="Stats",font="TkDefaultFont 10")
+        Button(self.statsFr,text="Print Stats...",padx=10,pady=2,command=printstats).pack(side=LEFT)
+        self.statsFr.pack(pady=[40,0])
         #--------------------------------------------------------------#
         if self.mode!='admin': 
             self.deleteAdbtn['state']=DISABLED
@@ -315,8 +357,6 @@ class App(Tk):
         self.descContainer.pack()
         db.commit()
 
-
-
     def selectAd(self):
         selected=self.tree.focus()
         values=self.tree.item(selected,'values') 
@@ -395,10 +435,43 @@ class App(Tk):
                 self.tree.insert(parent='',index='end',iid=count,text='',values=(row[0],row[1],row[2],row[3],str(row[4])+' €',row[5]),tags=('oddrow',))
             count+=1           
 
+    def printRecomm(self):
+        c=db.cursor()
+        print("ad_id,publisher_id,type,location,purpose,price,title")
+        for ad in queries.userRecommedations(c,self.user):
+            print(ad[0],ad[1],ad[2],ad[3],ad[4],ad[5],ad[6])
 
+    def printAdsbyString(self):
+        c=db.cursor()
+        print("\n\nSearching for:",self.search1.get())
+        print("ad_id,publisher_id,type,location,purpose,price,title")
+        for ad in queries.searchbyString(c,self.search1.get()):
+            print(ad[0],ad[1],ad[2],ad[3],ad[4],ad[5],ad[6])
 
+    def printFiltered(self):
+        query="SELECT ad_id,publisher_id,type,location,purpose,price,title FROM AGGELIA WHERE 1=1 "
+        field=self.type.get().strip(' ')
+        if (field!=''):
+            query+=f"AND type='{field}' "
+        field=self.purpose.get().strip(' ')
+        if (field!=''):
+            query+=f"AND purpose='{field}' "
+        field=self.location.get().strip(' ')
+        if (field!=''):
+            query+=f"AND location='{field}' "
+        field=self.pricemin.get().strip(' ')
+        if (field!=''):
+            query+=f"AND price>={field} "
+        field=self.pricemax.get().strip(' ')
+        if (field!=''):
+            query+=f"AND price<={field} "
+        c=db.cursor()
+        result = c.execute(query)
+        print("ad_id,publisher_id,type,location,purpose,price,title")
+        for ad in result:
+            print(ad[0],ad[1],ad[2],ad[3],ad[4],str(ad[5])+"€",ad[6])
+        
 
 if __name__ == '__main__':
     Login().mainloop()
     #App('endiaferomenos').mainloop()
-    
