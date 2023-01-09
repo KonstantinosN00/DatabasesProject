@@ -199,7 +199,8 @@ class App(Tk):
         self.actionBtnsContainer=LabelFrame(self.allAdsTab,text="Action Buttons",padx=20,pady=5,background='lightgrey')
         self.actionBtnsContainer.pack()
         #Action Buttons
-        Button(self.actionBtnsContainer,text='+',font="TkDefaultFont 16",command=self.newAd,padx=10,pady=3,background='lightgreen').pack(side=LEFT,padx=[20,10],anchor=W)
+        self.addAdbtn=Button(self.actionBtnsContainer,text='+',font="TkDefaultFont 16",command=self.newAd,padx=10,pady=3,background='lightgreen')
+        self.addAdbtn.pack(side=LEFT,padx=[20,10],anchor=W)
         self.viewAdbtn=Button(self.actionBtnsContainer,text="View Advertisement",command=self.selectAd,padx=10,pady=10,background='lightblue')
         self.viewAdbtn.pack(side=LEFT,padx=[40,10],anchor=W)
         self.deleteAdbtn=Button(self.actionBtnsContainer,text="Delete Advertisement",command=self.deleteAd,padx=10,pady=10,background='lightblue')
@@ -239,11 +240,26 @@ class App(Tk):
         if self.mode!='admin': 
             self.deleteAdbtn['state']=DISABLED
             self.updateAdbtn['state']=DISABLED
+            self.addAdbtn['state']=DISABLED
         if self.mode=='endiaferomenos':
             self.tabs.tab(self.myAdsTab,state='normal')
 
-    def newAd(self):return
-       
+    def newAd(self):
+        c=db.cursor()
+        ids=c.execute(f"SELECT ad_id FROM AGGELIA").fetchall()
+        newid=max(ids)[0]+1
+        price=input("Price: ")
+        publisher_id=input("Publisher_id: ")
+        typ=input("Type: ")
+        location=input("Location: ")
+        purpose=input("Purpose: ")
+        contact=input("Contact Number: ")
+        title=input("Title: ")
+        c.execute(f"""INSERT INTO AGGELIA(ad_id,publisher_id,type,location,purpose,price,title)
+        VALUES ({newid},{publisher_id},'{typ}','{location}','{purpose}',{price},'{title}')""")
+        db.commit()
+        self.refreshAll()
+
     def updateAd(self):
         selected=self.tree.focus()
         values=self.tree.item(selected,'values') 
