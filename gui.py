@@ -399,6 +399,6 @@ class App(Tk):
 
 
 if __name__ == '__main__':
-    #Login().mainloop()
-    App('endiaferomenos').mainloop()
+    Login().mainloop()
+    #App('endiaferomenos').mainloop()
     
