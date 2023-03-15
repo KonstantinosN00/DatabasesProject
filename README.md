@@ -1,6 +1,6 @@
-# DatabasesProject
+# Real Estate Database
 
-#INSTALL INSTRUCTIONS
+INSTALL INSTRUCTIONS
 (You can omit steps ii and iii and use the already uploaded database)
 
 1. Install python libraries pandas and pillow (pip install …)
