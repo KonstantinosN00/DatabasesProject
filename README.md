@@ -1,7 +1,7 @@
 # Real Estate Database
 
 INSTALL INSTRUCTIONS
-(You can omit steps ii and iii and use the already uploaded database)
+(You can omit steps 2 and 3 and use the already uploaded database)
 
 1. Install python libraries pandas and pillow (pip install …)
 2. (optional) Execute create_tables.py (SQL script for table creation)
